@@ -38,7 +38,7 @@ def gaussian_2d(pos, mux, muy, sx, sy, corr):
         rv =  multivariate_normal(mean, cov)
         pdf += rv.pdf(pos)
 
-    print(pdf.shape)
+    # print(pdf.shape)
     return pdf
 
 
