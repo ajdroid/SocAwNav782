@@ -226,7 +226,6 @@ class CostMap(object):
         X = np.linspace(-(self.patch_size/2)+1, self.patch_size/2, self.patch_size)
         Y = np.linspace(-(self.patch_size/2)+1, self.patch_size/2, self.patch_size)
        
-        pdf = np.zeros((height, width))
 
         X, Y = np.meshgrid(X, Y)
         pos = np.empty(X.shape + (2,))
@@ -235,17 +234,21 @@ class CostMap(object):
 
         stats = self.result_stats[idx]
 
-        for stat in stats:
+        pdf = np.zeros((height, width, len(stats)))
+
+        for idx, stat in enumerate(stats):
             mux, muy, sx, sy, corr = stat[0], stat[1], stat[2], stat[3], stat[4]
-            pdf += gaussian_2d(pos, mux*width, muy*height, sx*width, sy*height, corr, height, width, self.patch_size)
+            pdf[:,:,idx] = gaussian_2d(pos, mux*width, muy*height, sx*width, sy*height, corr, height, width, self.patch_size)
 
         if plot:
             X = np.linspace(0, width, width)
             Y = np.linspace(0, height, height)
             X, Y = np.meshgrid(X, Y)
+            
+            sumPdf = np.sum(pdf, axis = 2)
 
             plt.figure()    
-            plt.contourf(X, Y, pdf, zdir='z', cmap=cm.viridis, alpha=0.5)
+            plt.contourf(X, Y, sumPdf, cmap=cm.viridis, alpha=0.5)
             plt.show()
 
         return pdf
