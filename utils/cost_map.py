@@ -198,7 +198,7 @@ def main():
 
 
 class CostMap(object):
-    def __init__(self, height, width, resolution, save_directory="../prediction_data", stat_data="result_stats.pkl"):
+    def __init__(self, height, width, resolution=None, save_directory="../prediction_data", stat_data="result_stats.pkl"):
         result_stats_file = os.path.join(save_directory, stat_data)
         f = open(result_stats_file, 'rb')
         self.result_stats = pickle.load(f)
@@ -212,8 +212,14 @@ class CostMap(object):
         height = self.height
         width = self.width
 
-        X = np.linspace(0, height, self.resolution)
-        Y = np.linspace(0, width, self.resolution)
+        if not self.resolution:
+            X = np.linspace(0, width, width)
+            Y = np.linspace(0, height, height)
+            pdf = np.zeros((width, height))
+        else:
+            X = np.linspace(0, width, self.resolution)
+            Y = np.linspace(0, height, self.resolution)
+            pdf = np.zeros((self.resolution, self.resolution))
         X, Y = np.meshgrid(X, Y)
         pos = np.empty(X.shape + (2,))
         pos[:, :, 0] = X
@@ -221,11 +227,9 @@ class CostMap(object):
 
         stats = self.result_stats[idx]
 
-        pdf = np.zeros((self.resolution,self.resolution))
-
         for stat in stats:
             mux, muy, sx, sy, corr = stat[0], stat[1], stat[2], stat[3], stat[4]
-            pdf += gaussian_2d(pos, mux*height, muy*width, sx*height, sy*width, corr)
+            pdf += gaussian_2d(pos, mux*height, muy*width, sx*width, sy*height, corr)
 
         if plot:
             plt.figure()    
@@ -235,5 +239,5 @@ class CostMap(object):
         return pdf
 
 if __name__ == '__main__':
-    cost_map = CostMap(1000, 1000, 100)
-    pdf = cost_map.get_cost_map(100, plot=True)
+    cost_map = CostMap(1000, 1200, 100)
+    pdf = cost_map.get_cost_map(1000, plot=True)
