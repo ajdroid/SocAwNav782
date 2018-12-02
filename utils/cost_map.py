@@ -209,7 +209,7 @@ def main():
 
 
 class CostMap(object):
-    def __init__(self, height, width, patch_size, save_directory="../prediction_data", stat_data="result_stats.pkl"):
+    def __init__(self, height, width, patch_size=100, save_directory="../prediction_data", stat_data="result_stats.pkl"):
         result_stats_file = os.path.join(save_directory, stat_data)
         f = open(result_stats_file, 'rb')
         self.result_stats = pickle.load(f)

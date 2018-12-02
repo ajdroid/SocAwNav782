@@ -4,6 +4,7 @@ import os
 import sys
 import cost_map
 from matplotlib import pyplot as plt
+from matplotlib import cm
 
 class Pedestrian():
     def __init__(self):
@@ -192,7 +193,7 @@ def plot_annotated_video_plt(videofile, annotation_file):
     height, width = image.shape[:2]
 
     # initialize loading the cost maps
-    cm_object = cost_map.CostMap(height, width)
+    cm_object = cost_map.CostMap(height, width, 100)
     X = np.linspace(0, width, width)
     Y = np.linspace(0, height, height)
     X, Y = np.meshgrid(X, Y)
