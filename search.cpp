@@ -6,6 +6,9 @@
 #include <queue>
 #include <unordered_set>
 #include <set>
+#include "xtensor/xarray.hpp"
+#include "xtensor/xio.hpp"
+#include "xtensor/xview.hpp"
 
 using namespace std;
 
@@ -65,7 +68,7 @@ double fVal(double g, int x, int y);
 class fCompare
 {
 	public:
-	comp();
+	//comp();
 	bool operator() (const node& lhs, const node& rhs) const
 	{
 		return (lhs.f > rhs.f);//(lhsF > rhsF);
@@ -140,6 +143,7 @@ main()
 	{
 		cout << "X = " << PathX[i] << ", Y = " << PathY[i] << ", T = " << PathT[i] << endl;
 	}
+	vector<xt::xarray<double>> temp;
 }
 
 void ARAstar(double speed, int startX, int startY,double ***predictions, double *predictionTimes, int numPredictions, 
