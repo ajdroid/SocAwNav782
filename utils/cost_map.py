@@ -7,8 +7,9 @@ from scipy.stats import multivariate_normal
 from matplotlib import cm
 import os
 
+import pdb
 
-def gaussian_2d(pos, mux, muy, sx, sy, corr):
+def gaussian_2d(pos, mux, muy, sx, sy, corr, height, width, path_size):
     '''
     Parameters
     ==========
@@ -29,16 +30,23 @@ def gaussian_2d(pos, mux, muy, sx, sy, corr):
 
     numNodes = mux.shape[1]
     
-    pdf = np.zeros(pos[:,:,0].shape)
+    pdf = np.zeros((height, width))
     
+    # pdb.set_trace()
+
     for node in range(numNodes):
         mean = [o_mux[node], o_muy[node]]
         cov = [[o_sx[node]*o_sx[node], o_corr[node]*o_sx[node]*o_sy[node]], [o_corr[node]*o_sx[node]*o_sy[node], o_sy[node]*o_sy[node]]]
+        
+        curr_pos = np.copy(pos)
+
+        curr_pos[:,:,0] = np.clip(curr_pos[:,:,0] + o_mux[node], 0, width-1)
+        curr_pos[:,:,1] = np.clip(curr_pos[:,:,1] + o_muy[node], 0, height-1)
 
         rv =  multivariate_normal(mean, cov)
-        pdf += rv.pdf(pos)
 
-    # print(pdf.shape)
+        pdf[curr_pos[:,:,1].astype(np.int), curr_pos[:,:,0].astype(np.int)] += rv.pdf(curr_pos)
+
     return pdf
 
 
@@ -201,41 +209,41 @@ def main():
 
 
 class CostMap(object):
-    def __init__(self, height, width, resolution=None, save_directory="../prediction_data", stat_data="result_stats.pkl"):
+    def __init__(self, height, width, patch_size, save_directory="../prediction_data", stat_data="result_stats.pkl"):
         result_stats_file = os.path.join(save_directory, stat_data)
         f = open(result_stats_file, 'rb')
         self.result_stats = pickle.load(f)
         self.frame_num = np.asarray([i * 10 for i in range(len(self.result_stats))])
         self.height = height
         self.width = width
-        self.resolution = resolution
+        self.patch_size = patch_size
 
     def get_cost_map(self, frame_num, plot=False):
         idx = (np.abs(self.frame_num - frame_num)).argmin()
         height = self.height
         width = self.width
 
-        if not self.resolution:
-            X = np.linspace(0, width, width)
-            Y = np.linspace(0, height, height)
-            pdf = np.zeros((height, width))
-        else:
-            X = np.linspace(0, width, self.resolution)
-            Y = np.linspace(0, height, self.resolution)
-            pdf = np.zeros((self.resolution, self.resolution))
+        X = np.linspace(-(self.patch_size/2)+1, self.patch_size/2, self.patch_size)
+        Y = np.linspace(-(self.patch_size/2)+1, self.patch_size/2, self.patch_size)
+       
+        pdf = np.zeros((height, width))
+
         X, Y = np.meshgrid(X, Y)
         pos = np.empty(X.shape + (2,))
         pos[:, :, 0] = X
         pos[:, :, 1] = Y
 
-
         stats = self.result_stats[idx]
 
         for stat in stats:
             mux, muy, sx, sy, corr = stat[0], stat[1], stat[2], stat[3], stat[4]
-            pdf += gaussian_2d(pos, mux*width, muy*height, sx*width, sy*height, corr)
+            pdf += gaussian_2d(pos, mux*width, muy*height, sx*width, sy*height, corr, height, width, self.patch_size)
 
         if plot:
+            X = np.linspace(0, width, width)
+            Y = np.linspace(0, height, height)
+            X, Y = np.meshgrid(X, Y)
+
             plt.figure()    
             plt.contourf(X, Y, pdf, zdir='z', cmap=cm.viridis, alpha=0.5)
             plt.show()
@@ -243,5 +251,5 @@ class CostMap(object):
         return pdf
 
 if __name__ == '__main__':
-    cost_map = CostMap(100, 120)
-    pdf = cost_map.get_cost_map(1000, plot=True)
+    cost_map = CostMap(1000, 1200, 100)
+    pdf = cost_map.get_cost_map(80, plot=True)
