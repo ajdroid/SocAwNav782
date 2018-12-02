@@ -233,7 +233,7 @@ class CostMap(object):
 
         for stat in stats:
             mux, muy, sx, sy, corr = stat[0], stat[1], stat[2], stat[3], stat[4]
-            pdf += gaussian_2d(pos, mux*height, muy*width, sx*width, sy*height, corr)
+            pdf += gaussian_2d(pos, mux*width, muy*height, sx*width, sy*height, corr)
 
         if plot:
             plt.figure()    
