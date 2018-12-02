@@ -2,7 +2,8 @@ import numpy as np
 import cv2
 import os 
 import sys
-
+import cost_map
+from matplotlib import pyplot as plt
 
 class Pedestrian():
     def __init__(self):
@@ -107,7 +108,7 @@ def place_annotation(image, annotation_dict, frame, color_dict):
     # print("The frame info :")
     # print(frame_info)
     for subject_set in frame_info:
-        if not subject_set[6] and not subject_set[7] and not subject_set[8]:
+        if subject_set[6]!=1 and subject_set[7]!=1 and subject_set[8]!=1:
             cv2.rectangle(image, (int(subject_set[1]), int(subject_set[2])),
                           (int(subject_set[3]), int(subject_set[4])), color_dict[subject_set[9]], 2)
             cv2.putText(image, subject_set[0],
@@ -149,12 +150,80 @@ def plot_annotated_video(videofile, annotation_file):
         place_annotation(image, annotation_dict, str(count), color_dict)
         cv2.imshow("frame", image)
         success, image = videocap.read()
-        # cv2.waitKey(1)
+        cv2.waitKey(1)
 
         if cv2.waitKey(5) == 27:
             break
 
         count += 1
+
+    videocap.release()
+    cv2.destroyAllWindows()
+
+def plot_annotated_video_plt(videofile, annotation_file):
+    color_dict = {'"Biker"': (0, 0, 255), '"Pedestrian"': (0, 255, 0), '"Car"': (255, 255, 0), '"Bus"': (0, 0, 0), \
+                  '"Skateboarder"': (100, 100, 255), '"Cart"': (255, 255, 255)}
+    if not os.path.isfile(videofile):
+        print("The video file does not exist.")
+        return 0
+    if not os.path.isfile(annotation_file):
+        print("The annotation file does not exist.")
+        return 0
+
+    # load in the video
+    videocap = cv2.VideoCapture(videofile)
+    annotation_list = []
+    annotation_dict = {}
+    print("Loading annotation file")
+    with open(annotation_file) as f:
+        for line in f:
+            line = line.strip().split(' ')
+            annotation_list.append(line)
+
+    # initialize loading the annotations
+    for entry in annotation_list:
+        frame_id = entry[5]
+        if frame_id not in annotation_dict:
+            annotation_dict[frame_id] = []
+        annotation_dict[frame_id].append(entry)
+    annotation_list.sort(key=lambda x: x[5])
+
+    success, image = videocap.read()
+    height, width = image.shape[:2]
+
+    # initialize loading the cost maps
+    cm_object = cost_map.CostMap(height, width)
+    X = np.linspace(0, width, width)
+    Y = np.linspace(0, height, height)
+    X, Y = np.meshgrid(X, Y)
+
+    count = 0
+    while success:
+
+        # cost maps available only from 80
+        if count < 80:
+            success, image = videocap.read()
+            count += 1
+            continue
+        # print("read 80")
+        place_annotation(image, annotation_dict, str(count), color_dict)
+
+        # cv2.imshow("frame", image)
+
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)  # invert channels to use with pyplot
+        pdf = cm_object.get_cost_map(count)
+
+        # plotting
+        plt.figure()
+        plt.contourf(X, Y, pdf, zdir='z', cmap=cm.viridis, alpha=0.4)
+        plt.imshow(image, alpha=0.6)
+        plt.show()
+
+        success, image = videocap.read()
+        count += 1
+
+        if cv2.waitKey(5) == 27:
+            break
 
     videocap.release()
     cv2.destroyAllWindows()
@@ -178,19 +247,19 @@ The definitions of these columns are:
 if __name__ == "__main__":
 
     videofile1 = '../dataset/videos/bookstore/video0/video.mov'
-    # videofile = '/media/abhisek/Elements/Local Disk(E) Backup/xx/HoLLywood/Up (2009) [1080p]/up.mp4'
     annotationfile = '../dataset/annotations/bookstore/video0/annotations.txt'
 
     print("Start")
-    plot_annotated_video(videofile1, annotationfile)
+    # plot_annotated_video(videofile1, annotationfile)
+    plot_annotated_video_plt(videofile1, annotationfile)
 
-    pt1 = Pedestrian()
-
-    pt1.extract_subject_trajectory(annotationfile, 1)
-
-    print(pt1.start_frame)
-    print(pt1.stop_frame)
-    print(pt1.preferred_speed)
+    # pt1 = Pedestrian()
+    #
+    # pt1.extract_subject_trajectory(annotationfile, 1)
+    #
+    # print(pt1.start_frame)
+    # print(pt1.stop_frame)
+    # print(pt1.preferred_speed)
     #print(pt1.position_list)
     #print(pt1.velocity_list)
     # pt1.plotSubjectInvideo(videofile1)
