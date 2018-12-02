@@ -38,6 +38,7 @@ def gaussian_2d(pos, mux, muy, sx, sy, corr):
         rv =  multivariate_normal(mean, cov)
         pdf += rv.pdf(pos)
 
+    print(pdf.shape)
     return pdf
 
 
@@ -91,6 +92,8 @@ def plot_trajectories(true_trajs, pred_trajs, nodesPresent, obs_length, stats, n
     pos = np.empty(X.shape + (2,))
     pos[:, :, 0] = X
     pos[:, :, 1] = Y
+
+    
     
     pdf = np.zeros((100,100))
     
@@ -215,7 +218,7 @@ class CostMap(object):
         if not self.resolution:
             X = np.linspace(0, width, width)
             Y = np.linspace(0, height, height)
-            pdf = np.zeros((width, height))
+            pdf = np.zeros((height, width))
         else:
             X = np.linspace(0, width, self.resolution)
             Y = np.linspace(0, height, self.resolution)
@@ -224,6 +227,7 @@ class CostMap(object):
         pos = np.empty(X.shape + (2,))
         pos[:, :, 0] = X
         pos[:, :, 1] = Y
+
 
         stats = self.result_stats[idx]
 
@@ -239,5 +243,5 @@ class CostMap(object):
         return pdf
 
 if __name__ == '__main__':
-    cost_map = CostMap(1000, 1200, 100)
+    cost_map = CostMap(100, 120)
     pdf = cost_map.get_cost_map(1000, plot=True)
