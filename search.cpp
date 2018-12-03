@@ -303,10 +303,14 @@ xt::pyarray<double> backTrace(unordered_set<node,nodeHasher,nodeComparator> *sta
 	vector<int> PathX; vector<int> PathY; vector<double> PathT;
 	node tempState = lastNode;
 	auto it = states->find(tempState);
-
+	int timeStep = floor(it->t);
 	while ((tempState.x != startX) && (tempState.y != startY))
 	{
-		PathX.insert(PathX.begin(),it->x); PathY.insert(PathY.begin(),it->y); PathT.insert(PathT.begin(),it->t);
+		if (it->t <= timeStep)
+		{
+			timeStep=timeStep-1;
+			PathX.insert(PathX.begin(),it->x); PathY.insert(PathY.begin(),it->y); PathT.insert(PathT.begin(),it->t);
+		}
 		tempState.x = it->parentx; tempState.y = it->parenty; tempState.t = it->parentT;
 		it = states->find(tempState);
 	}
