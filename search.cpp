@@ -18,7 +18,7 @@ int neighborY[numNeighbors] = {-1,0,1,1,1,0,-1,-1};
 
 int sizeX;
 int sizeY;
-float epsilon;
+float epsilon = 1;
 int goalX;
 int goalY;
 
@@ -57,12 +57,10 @@ void indexToXY(int index, int* x, int* y);
 double distance(int x1, int y1, int x2, int y2);
 int XYtoIndex(int x, int y);
 node ComputePathWithReuse(double speed, unordered_set<node,nodeHasher,nodeComparator> *states, 
-	int startX, int startY, double ***predictions,double *predictionTimes, int numPredictions);
-void ARAstar(double speed, int startX, int startY,double ***predictions, double *predictionTimes, int numPredictions, 
-	vector<int> *PathX, vector<int> *PathY, vector<double> *PathT);
+	int startX, int startY, vector<xt::xarray<double>> predictions, vector<double> predictionTimes);
+xt::xarray<double> ARAstar(double speed, int startX, int startY, int _goalX, int _goalY, int _sizeX, int _sizeY, vector<xt::xarray<double>> predictions, vector<double> predictionTimes);
 bool reachedGoal(node nodeToCheck);
-void backTrace(unordered_set<node,nodeHasher,nodeComparator> *states, node lastNode,
-	int startX, int startY, vector<int> *PathX, vector<int> *PathY, vector<double> *PathT);
+xt::xarray<double> backTrace(unordered_set<node,nodeHasher,nodeComparator> *states, node lastNode,int startX, int startY);
 double fVal(double g, int x, int y);
 
 class fCompare
@@ -75,80 +73,44 @@ class fCompare
 	}
 };
 
+/*
+PYBIND11_MODULE(searcher, m)
+{
+    xt::import_numpy();
+    m.doc() = "Searches graph for path to goal";
+
+    m.def("graphSearch", ARAstar, "");
+}
+*/
+
 main()
 {
 	// set size of map and goal position
-	sizeX = 200;
-	sizeY = 200;
-	goalX = 199;
-	goalY = 199;
-	epsilon = 1;
+	int _sizeX = 200;
+	int _sizeY = 200;
+	int _goalX = 199;
+	int _goalY = 199;
 
-	// random people position at t=0
-	int numPeople = 0;
-	double initXpos[numPeople]; 
-	double initYpos[numPeople];
-	srand (time(NULL));
-	for (int i = 0; i < numPeople;i++)
-	{
-		initXpos[i] = rand()%(sizeX-1);
-		initYpos[i] = rand()%(sizeY-1);
-	}
-
-	// set up matrices of predictions
-	int numPredictions = 12;
-	double predictionTimes[numPredictions];
-	double timeBetweenPredictions = 100;
-	double ***predictions = (double***) malloc(numPredictions*sizeof(double**));
-	for (int i = 0; i < numPredictions; i++)
-	{
-		predictionTimes[i] = i*timeBetweenPredictions;
-		predictions[i] = (double**) malloc(sizeX*sizeof(double*));
-		for (int j = 0;j < sizeX;j++)
-		{
-			predictions[i][j] = (double*) malloc(sizeY*sizeof(double));
-		}
-	}
-
-	// set up initial gaussian distribution
-	for (int i = 0; i < sizeX; i ++)
-	{
-		for (int j = 0; j < sizeX; j ++)
-		{
-			double val = 0;
-			for (int k = 0;k < numPeople;k++)
-			{
-				val = val + 100*exp(-pow(i-initXpos[k],2)/(40)-pow(j-initYpos[k],2)/(40));
-			}
-			predictions[0][i][j] = max(val,(double)1);
-		}
-	}
-
-	for (int i = 1;i < numPredictions; i++)
-	{
-		for (int j = 0; j < sizeX; j ++)
-		{
-			predictions[i][j][0] = predictions[i-1][j][sizeY-1];
-			for (int k = 1; k < sizeY; k++)
-			{
-				predictions[i][j][k] = predictions[i-1][j][k-1];
-			}
-		}
-	}
+	vector<double> predictionTimes;
+	vector<xt::xarray<double>> predictions;
+	predictionTimes.push_back(0);
+	predictionTimes.push_back(1000);
+	predictions.push_back(xt::zeros<double>({_sizeX,_sizeY}));
+	predictions.push_back(xt::zeros<double>({_sizeX,_sizeY}));
+	
 	cout << "starting search\n";
 	int startX = 0; int startY = 0; double speed = 10;
 	vector<int> PathX; vector<int> PathY; vector<double> PathT;
-	ARAstar(speed, startX, startY,predictions,predictionTimes,numPredictions, &PathX, &PathY, &PathT);
-	for (int i=0;i<PathX.size();i++)
-	{
-		cout << "X = " << PathX[i] << ", Y = " << PathY[i] << ", T = " << PathT[i] << endl;
-	}
-	vector<xt::xarray<double>> temp;
+	xt::xarray<double> solution = ARAstar(speed, startX, startY,_goalX,_goalY,_sizeX,_sizeY,predictions,predictionTimes);
+	cout << solution;
 }
 
-void ARAstar(double speed, int startX, int startY,double ***predictions, double *predictionTimes, int numPredictions, 
-	vector<int> *PathX, vector<int> *PathY, vector<double> *PathT)
+xt::xarray<double> ARAstar(double speed, int startX, int startY, int _goalX, int _goalY, int _sizeX, int _sizeY, vector<xt::xarray<double>> predictions, vector<double> predictionTimes)
 {
+	sizeX = _sizeX;
+	sizeY = _sizeY;
+	goalX = _goalX;
+	goalY = _goalY;
 	// initialize g values and open list for the first weighted Astar
 	unordered_set<node, nodeHasher, nodeComparator> states;
 	node newState;
@@ -160,6 +122,7 @@ void ARAstar(double speed, int startX, int startY,double ***predictions, double 
 	states.insert(newState);
 	int numOfEpsilons = 1;
 	float epsilonList[numOfEpsilons] = {1};
+	xt::xarray<double> solution;
 
 	for (int i = 0; i < numOfEpsilons; i++)
 	{
@@ -177,14 +140,15 @@ void ARAstar(double speed, int startX, int startY,double ***predictions, double 
 		}
 		states = tempStates;
 		double tFound;
-		node lastNode = ComputePathWithReuse(speed, &states, startX, startY,predictions,predictionTimes,numPredictions);
+		node lastNode = ComputePathWithReuse(speed, &states, startX, startY,predictions,predictionTimes);
 		//publish solution
-		backTrace(&states, lastNode, startX, startY, PathX, PathY, PathT);
+		solution = backTrace(&states, lastNode, startX, startY);
 	}
+	return solution;
 }
 
 node ComputePathWithReuse(double speed, unordered_set<node,nodeHasher,nodeComparator> *states, 
-	int startX, int startY, double ***predictions,double *predictionTimes, int numPredictions)
+	int startX, int startY, vector<xt::xarray<double>> predictions, vector<double> predictionTimes)
 {
 	// initialize priority queue used to choose states to expand
 	priority_queue<node,vector<node>,fCompare> OPEN;
@@ -199,7 +163,7 @@ node ComputePathWithReuse(double speed, unordered_set<node,nodeHasher,nodeCompar
 	}
 
 	// Loop until either goal is next to expand (f goal is the smallest in open list) or no more nodes in open list
-	while((OPEN.top().t < predictionTimes[numPredictions-1]) && !reachedGoal(OPEN.top()) && !OPEN.empty())
+	while((OPEN.top().t < predictionTimes.back()) && !reachedGoal(OPEN.top()) && !OPEN.empty())
 	{
 		auto expand = states->find(OPEN.top());
 		OPEN.pop();
@@ -226,17 +190,17 @@ node ComputePathWithReuse(double speed, unordered_set<node,nodeHasher,nodeCompar
 					while ((predictionTimes[upper] > tempT))
 					{
 						lower = upper;
-						if (upper < numPredictions)
+						if (upper < predictionTimes.size())
 						{
 							upper++;
 						}
 						else
 							break;
 					}
-					double lastPredict = predictions[lower][tempX][tempY];
-					double nextPredict = predictions[upper][tempX][tempY];
+					double lastPredict = (predictions[lower])(tempX,tempY);
+					double nextPredict = (predictions[upper])(tempX,tempY);
 					double tempP = lastPredict + (nextPredict-lastPredict)*(tempT-predictionTimes[lower]);
-					double tempG = (expand->g) + distance(thisX, thisY, tempX,tempY)*tempP;
+					double tempG = (expand->g) + distance(thisX, thisY, tempX,tempY) + tempP;
 					node tempState;
 					tempState.x = tempX;
 					tempState.y = tempY;
@@ -292,21 +256,29 @@ node ComputePathWithReuse(double speed, unordered_set<node,nodeHasher,nodeCompar
 	return OPEN.top();
 }
 
-void backTrace(unordered_set<node,nodeHasher,nodeComparator> *states, node lastNode,
-	int startX, int startY, vector<int> *PathX, vector<int> *PathY, vector<double> *PathT)
+
+xt::xarray<double> backTrace(unordered_set<node,nodeHasher,nodeComparator> *states, node lastNode,
+	int startX, int startY)
 {
+	vector<int> PathX; vector<int> PathY; vector<double> PathT;
 	node tempState = lastNode;
 	auto it = states->find(tempState);
 
 	while ((tempState.x != startX) && (tempState.y != startY))
 	{
-		//cout << "X = " << it->x << ", Y = " << it->y << ", t = " << it->t << endl;
-		PathX->insert(PathX->begin(),it->x); PathY->insert(PathY->begin(),it->y); PathT->insert(PathT->begin(),it->t);
+		PathX.insert(PathX.begin(),it->x); PathY.insert(PathY.begin(),it->y); PathT.insert(PathT.begin(),it->t);
 		tempState.x = it->parentx; tempState.y = it->parenty; tempState.t = it->parentT;
 		it = states->find(tempState);
 	}
-	//cout << "X = " << it->x << ", Y = " << it->y << ", t = " << it->t << endl;
-	PathX->insert(PathX->begin(),it->x); PathY->insert(PathY->begin(),it->y); PathT->insert(PathT->begin(),it->t);
+	PathX.insert(PathX.begin(),it->x); PathY.insert(PathY.begin(),it->y); PathT.insert(PathT.begin(),it->t);
+	xt::xarray<double> solution = xt::zeros<double>({3,(int)PathX.size()});
+	for (int i = 0; i < PathX.size();i++)
+	{
+		solution(0,i) = PathX[i];
+		solution(1,i) = PathY[i];
+		solution(2,i) = PathT[i];
+	}
+	return solution;
 }
 
 double fVal(double g, int x, int y)
