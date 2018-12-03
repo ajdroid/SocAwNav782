@@ -65,7 +65,7 @@ node ComputePathWithReuse(double speed, unordered_set<node,nodeHasher,nodeCompar
 	int startX, int startY, xt::pyarray<double> &predictions, xt::pyarray<double> &predictionTimes);
 xt::pyarray<double> ARAstar(double speed, int startX, int startY, int _goalX, int _goalY, xt::pyarray<double> &predictions, xt::pyarray<double> &predictionTimes);
 bool reachedGoal(node nodeToCheck);
-xt::pyarray<double> backTrace(unordered_set<node,nodeHasher,nodeComparator> *states, node lastNode,int startX, int startY);
+xt::pyarray<double> backTrace(unordered_set<node,nodeHasher,nodeComparator> *states, node lastNode,int startX, int startY, double lastPredictTime);
 double fVal(double g, int x, int y);
 xt::pyarray<double> testFunc(xt::pyarray<double> input);
 
@@ -182,7 +182,8 @@ xt::pyarray<double> ARAstar(double speed, int startX, int startY, int _goalX, in
 		double tFound;
 		node lastNode = ComputePathWithReuse(speed, &states, startX, startY,predictions,predictionTimes);
 		//publish solution
-		solution = backTrace(&states, lastNode, startX, startY);
+		double lastPredictTime = predictionTimes(predictionTimes.size()-1);
+		solution = backTrace(&states, lastNode, startX, startY,lastPredictTime);
 	}
 	return solution;
 }
@@ -298,12 +299,12 @@ node ComputePathWithReuse(double speed, unordered_set<node,nodeHasher,nodeCompar
 
 
 xt::pyarray<double> backTrace(unordered_set<node,nodeHasher,nodeComparator> *states, node lastNode,
-	int startX, int startY)
+	int startX, int startY, double lastPredictTime)
 {
 	vector<int> PathX; vector<int> PathY; vector<double> PathT;
 	node tempState = lastNode;
 	auto it = states->find(tempState);
-	int timeStep = floor(it->t);
+	int timeStep = ceil(it->t);
 	while ((tempState.x != startX) && (tempState.y != startY))
 	{
 		if (it->t <= timeStep)
