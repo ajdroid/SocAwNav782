@@ -6,9 +6,13 @@
 #include <queue>
 #include <unordered_set>
 #include <set>
-#include "xtensor/pyarray.hpp"
+
 #include "xtensor/xio.hpp"
 #include "xtensor/xview.hpp"
+
+#define FORCE_IMPORT_ARRAY
+#include "xtensor-python/pyarray.hpp"
+#include "xtensor-python/pyvectorize.hpp"
 
 
 using namespace std;
@@ -76,32 +80,24 @@ class fCompare
 };
 
 
-PYBIND11_MODULE(searcher, m)
-{
-    xt::import_numpy();
-    m.doc() = "Searches graph for path to goal";
+// PYBIND11_MODULE(searcher, m)
+// {
+//     xt::import_numpy();
+//     m.doc() = "Searches graph for path to goal";
 
-    m.def("graphSearch", ARAstar, "");
-}
+//     m.def("graphSearch", ARAstar, "");
+// }
 
 
-PYBIND11_MODULE(testMod, m)
-{
-    xt::import_numpy();
-    m.doc() = "Searches graph for path to goal";
+// PYBIND11_MODULE(mainMod, m)
+// {
+//     xt::import_numpy();
+//     m.doc() = "Searches graph for path to goal";
 
-    m.def("testFunc", testFunc, "");
-}
+//     m.def("main", main, "");
+// }
 
-PYBIND11_MODULE(mainMod, m)
-{
-    xt::import_numpy();
-    m.doc() = "Searches graph for path to goal";
-
-    m.def("main", main, "");
-}
-
-main()
+void test_main()
 {
 	// set size of map and goal position
 	int _sizeX = 200;
@@ -333,4 +329,14 @@ double distance(int x1, int y1, int x2, int y2)
 bool reachedGoal(node nodeToCheck)
 {
 	return	(nodeToCheck.x == goalX) && (nodeToCheck.y == goalY);
+}
+
+
+PYBIND11_MODULE(search, m)
+{
+    xt::import_numpy();
+    m.doc() = "Searches graph for path to goal";
+
+    m.def("testFunc", testFunc, "");
+	m.def("test_main", test_main, "");
 }
