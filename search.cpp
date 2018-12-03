@@ -57,8 +57,8 @@ void indexToXY(int index, int* x, int* y);
 double distance(int x1, int y1, int x2, int y2);
 int XYtoIndex(int x, int y);
 node ComputePathWithReuse(double speed, unordered_set<node,nodeHasher,nodeComparator> *states, 
-	int startX, int startY, vector<xt::xarray<double>> predictions, vector<double> predictionTimes);
-xt::xarray<double> ARAstar(double speed, int startX, int startY, int _goalX, int _goalY, int _sizeX, int _sizeY, vector<xt::xarray<double>> predictions, vector<double> predictionTimes);
+	int startX, int startY, xt::xarray<double> &predictions, xt::xarray<double> &predictionTimes);
+xt::xarray<double> ARAstar(double speed, int startX, int startY, int _goalX, int _goalY, xt::xarray<double> &predictions, xt::xarray<double> &predictionTimes);
 bool reachedGoal(node nodeToCheck);
 xt::xarray<double> backTrace(unordered_set<node,nodeHasher,nodeComparator> *states, node lastNode,int startX, int startY);
 double fVal(double g, int x, int y);
@@ -91,24 +91,28 @@ main()
 	int _goalX = 199;
 	int _goalY = 199;
 
-	vector<double> predictionTimes;
+	/*vector<double> predictionTimes;
 	vector<xt::xarray<double>> predictions;
 	predictionTimes.push_back(0);
 	predictionTimes.push_back(1000);
 	predictions.push_back(xt::zeros<double>({_sizeX,_sizeY}));
-	predictions.push_back(xt::zeros<double>({_sizeX,_sizeY}));
-	
+	predictions.push_back(xt::zeros<double>({_sizeX,_sizeY}));*/
+	xt::xarray<double> predictionTimes;
+	xt::xarray<double> predictions;
+	predictionTimes = {0,100,200};
+	predictions = xt::zeros<double>({3,_sizeX,_sizeY});	
+
 	cout << "starting search\n";
 	int startX = 0; int startY = 0; double speed = 10;
 	vector<int> PathX; vector<int> PathY; vector<double> PathT;
-	xt::xarray<double> solution = ARAstar(speed, startX, startY,_goalX,_goalY,_sizeX,_sizeY,predictions,predictionTimes);
-	cout << solution;
+	xt::xarray<double> solution = ARAstar(speed, startX, startY,_goalX,_goalY,predictions,predictionTimes);
+	cout << solution << endl;
 }
 
-xt::xarray<double> ARAstar(double speed, int startX, int startY, int _goalX, int _goalY, int _sizeX, int _sizeY, vector<xt::xarray<double>> predictions, vector<double> predictionTimes)
+xt::xarray<double> ARAstar(double speed, int startX, int startY, int _goalX, int _goalY, xt::xarray<double> &predictions, xt::xarray<double> &predictionTimes)
 {
-	sizeX = _sizeX;
-	sizeY = _sizeY;
+	sizeX = predictions.shape()[1];//_sizeX;
+	sizeY = predictions.shape()[2];//_sizeY;
 	goalX = _goalX;
 	goalY = _goalY;
 	// initialize g values and open list for the first weighted Astar
@@ -148,7 +152,7 @@ xt::xarray<double> ARAstar(double speed, int startX, int startY, int _goalX, int
 }
 
 node ComputePathWithReuse(double speed, unordered_set<node,nodeHasher,nodeComparator> *states, 
-	int startX, int startY, vector<xt::xarray<double>> predictions, vector<double> predictionTimes)
+	int startX, int startY, xt::xarray<double> &predictions, xt::xarray<double> &predictionTimes)
 {
 	// initialize priority queue used to choose states to expand
 	priority_queue<node,vector<node>,fCompare> OPEN;
@@ -163,7 +167,7 @@ node ComputePathWithReuse(double speed, unordered_set<node,nodeHasher,nodeCompar
 	}
 
 	// Loop until either goal is next to expand (f goal is the smallest in open list) or no more nodes in open list
-	while((OPEN.top().t < predictionTimes.back()) && !reachedGoal(OPEN.top()) && !OPEN.empty())
+	while((OPEN.top().t < predictionTimes(predictionTimes.size()-1)) && !reachedGoal(OPEN.top()) && !OPEN.empty())
 	{
 		auto expand = states->find(OPEN.top());
 		OPEN.pop();
@@ -187,7 +191,7 @@ node ComputePathWithReuse(double speed, unordered_set<node,nodeHasher,nodeCompar
 					// update g value of this neighbor (g value of expanded node + distance times linearly interpolated prediction)
 					int upper = 0;
 					int lower = 0;
-					while ((predictionTimes[upper] > tempT))
+					while ((predictionTimes(upper) > tempT))
 					{
 						lower = upper;
 						if (upper < predictionTimes.size())
@@ -197,9 +201,9 @@ node ComputePathWithReuse(double speed, unordered_set<node,nodeHasher,nodeCompar
 						else
 							break;
 					}
-					double lastPredict = (predictions[lower])(tempX,tempY);
-					double nextPredict = (predictions[upper])(tempX,tempY);
-					double tempP = lastPredict + (nextPredict-lastPredict)*(tempT-predictionTimes[lower]);
+					double lastPredict = predictions(lower,tempX,tempY);
+					double nextPredict = predictions(upper,tempX,tempY);
+					double tempP = lastPredict + (nextPredict-lastPredict)*(tempT-predictionTimes(lower));
 					double tempG = (expand->g) + distance(thisX, thisY, tempX,tempY) + tempP;
 					node tempState;
 					tempState.x = tempX;
