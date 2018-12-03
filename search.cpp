@@ -228,7 +228,7 @@ node ComputePathWithReuse(double speed, unordered_set<node,nodeHasher,nodeCompar
 					// update g value of this neighbor (g value of expanded node + distance times linearly interpolated prediction)
 					int upper = 0;
 					int lower = 0;
-					while ((predictionTimes(upper) > tempT))
+					while ((predictionTimes(upper) < tempT))
 					{
 						lower = upper;
 						if (upper < predictionTimes.size())
@@ -240,7 +240,15 @@ node ComputePathWithReuse(double speed, unordered_set<node,nodeHasher,nodeCompar
 					}
 					double lastPredict = predictions(lower,tempX,tempY);
 					double nextPredict = predictions(upper,tempX,tempY);
-					double tempP = lastPredict + (nextPredict-lastPredict)*(tempT-predictionTimes(lower));
+					double tempP;
+					if (predictionTimes(upper) == predictionTimes(lower))
+					{
+						tempP = lastPredict;
+					}
+					else
+					{
+						tempP = lastPredict + (nextPredict-lastPredict)*(tempT-predictionTimes(lower))/(predictionTimes(upper)-predictionTimes(lower));
+					}
 					double tempG = (expand->g) + distance(thisX, thisY, tempX,tempY) + tempP;
 					node tempState;
 					tempState.x = tempX;
