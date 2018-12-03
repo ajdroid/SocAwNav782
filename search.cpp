@@ -6,12 +6,10 @@
 #include <queue>
 #include <unordered_set>
 #include <set>
-#include "xtensor/xarray.hpp"
+#include "xtensor/pyarray.hpp"
 #include "xtensor/xio.hpp"
 #include "xtensor/xview.hpp"
-#include "xtensor-python/pyarray.hpp"
-#include "xtensor/xmath.hpp" 
-#include "pybind11/pybind11.h" 
+
 
 using namespace std;
 
@@ -65,6 +63,7 @@ xt::pyarray<double> ARAstar(double speed, int startX, int startY, int _goalX, in
 bool reachedGoal(node nodeToCheck);
 xt::pyarray<double> backTrace(unordered_set<node,nodeHasher,nodeComparator> *states, node lastNode,int startX, int startY);
 double fVal(double g, int x, int y);
+xt::pyarray<double> testFunc(xt::pyarray<double> input);
 
 class fCompare
 {
@@ -76,15 +75,31 @@ class fCompare
 	}
 };
 
-/*
+
 PYBIND11_MODULE(searcher, m)
 {
     xt::import_numpy();
     m.doc() = "Searches graph for path to goal";
 
     m.def("graphSearch", ARAstar, "");
-}*/
+}
 
+
+PYBIND11_MODULE(testMod, m)
+{
+    xt::import_numpy();
+    m.doc() = "Searches graph for path to goal";
+
+    m.def("testFunc", testFunc, "");
+}
+
+PYBIND11_MODULE(mainMod, m)
+{
+    xt::import_numpy();
+    m.doc() = "Searches graph for path to goal";
+
+    m.def("main", main, "");
+}
 
 main()
 {
@@ -94,6 +109,12 @@ main()
 	int _goalX = 199;
 	int _goalY = 199;
 
+	/*vector<double> predictionTimes;
+	vector<xt::pyarray<double>> predictions;
+	predictionTimes.push_back(0);
+	predictionTimes.push_back(1000);
+	predictions.push_back(xt::zeros<double>({_sizeX,_sizeY}));
+	predictions.push_back(xt::zeros<double>({_sizeX,_sizeY}));*/
 	xt::pyarray<double> predictionTimes;
 	xt::pyarray<double> predictions;
 	predictionTimes = {0,100,200};
@@ -104,6 +125,11 @@ main()
 	vector<int> PathX; vector<int> PathY; vector<double> PathT;
 	xt::pyarray<double> solution = ARAstar(speed, startX, startY,_goalX,_goalY,predictions,predictionTimes);
 	cout << solution << endl;
+}
+
+xt::pyarray<double> testFunc(xt::pyarray<double> input)
+{
+	return input+2;
 }
 
 xt::pyarray<double> ARAstar(double speed, int startX, int startY, int _goalX, int _goalY, xt::pyarray<double> &predictions, xt::pyarray<double> &predictionTimes)
@@ -140,6 +166,7 @@ xt::pyarray<double> ARAstar(double speed, int startX, int startY, int _goalX, in
 			tempStates.insert(thisNode);
 		}
 		states = tempStates;
+		double tFound;
 		node lastNode = ComputePathWithReuse(speed, &states, startX, startY,predictions,predictionTimes);
 		//publish solution
 		solution = backTrace(&states, lastNode, startX, startY);
@@ -271,7 +298,7 @@ xt::pyarray<double> backTrace(unordered_set<node,nodeHasher,nodeComparator> *sta
 		it = states->find(tempState);
 	}
 	PathX.insert(PathX.begin(),it->x); PathY.insert(PathY.begin(),it->y); PathT.insert(PathT.begin(),it->t);
-	xt::xarray<double> solution = xt::zeros<double>({3,(int)PathX.size()});
+	xt::pyarray<double> solution = xt::zeros<double>({3,(int)PathX.size()});
 	for (int i = 0; i < PathX.size();i++)
 	{
 		solution(0,i) = PathX[i];
