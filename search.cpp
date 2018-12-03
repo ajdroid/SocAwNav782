@@ -97,7 +97,28 @@ class fCompare
 //     m.def("main", main, "");
 // }
 
-void test_main()
+void test_preds()
+{
+	// set size of map and goal position
+	int _sizeX = 200;
+	int _sizeY = 200;
+	int _goalX = 199;
+	int _goalY = 199;
+
+	xt::pyarray<double> predictionTimes;
+	xt::pyarray<double> predictions;
+	predictionTimes = {0,100,200};
+	predictions = xt::zeros<double>({3,_sizeX,_sizeY});	
+
+	cout << "starting search\n";
+	int startX = 0; int startY = 0; double speed = 10;
+	vector<int> PathX; vector<int> PathY; vector<double> PathT;
+	xt::pyarray<double> solution = ARAstar(speed, startX, startY,_goalX,_goalY,predictions,predictionTimes);
+	cout << solution << endl;
+}
+
+void test_main(xt::pyarray<double> & predictionTimes, 
+xt::pyarray<double> & predictions)
 {
 	// set size of map and goal position
 	int _sizeX = 200;
@@ -111,10 +132,6 @@ void test_main()
 	predictionTimes.push_back(1000);
 	predictions.push_back(xt::zeros<double>({_sizeX,_sizeY}));
 	predictions.push_back(xt::zeros<double>({_sizeX,_sizeY}));*/
-	xt::pyarray<double> predictionTimes;
-	xt::pyarray<double> predictions;
-	predictionTimes = {0,100,200};
-	predictions = xt::zeros<double>({3,_sizeX,_sizeY});	
 
 	cout << "starting search\n";
 	int startX = 0; int startY = 0; double speed = 10;
@@ -339,4 +356,5 @@ PYBIND11_MODULE(search, m)
 
     m.def("testFunc", testFunc, "");
 	m.def("test_main", test_main, "");
+    m.def("graphSearch", ARAstar, "");
 }
