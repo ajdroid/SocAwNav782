@@ -9,6 +9,9 @@
 #include "xtensor/xarray.hpp"
 #include "xtensor/xio.hpp"
 #include "xtensor/xview.hpp"
+#include "xtensor-python/pyarray.hpp"
+#include "xtensor/xmath.hpp" 
+#include "pybind11/pybind11.h" 
 
 using namespace std;
 
@@ -57,10 +60,10 @@ void indexToXY(int index, int* x, int* y);
 double distance(int x1, int y1, int x2, int y2);
 int XYtoIndex(int x, int y);
 node ComputePathWithReuse(double speed, unordered_set<node,nodeHasher,nodeComparator> *states, 
-	int startX, int startY, xt::xarray<double> &predictions, xt::xarray<double> &predictionTimes);
-xt::xarray<double> ARAstar(double speed, int startX, int startY, int _goalX, int _goalY, xt::xarray<double> &predictions, xt::xarray<double> &predictionTimes);
+	int startX, int startY, xt::pyarray<double> &predictions, xt::pyarray<double> &predictionTimes);
+xt::pyarray<double> ARAstar(double speed, int startX, int startY, int _goalX, int _goalY, xt::pyarray<double> &predictions, xt::pyarray<double> &predictionTimes);
 bool reachedGoal(node nodeToCheck);
-xt::xarray<double> backTrace(unordered_set<node,nodeHasher,nodeComparator> *states, node lastNode,int startX, int startY);
+xt::pyarray<double> backTrace(unordered_set<node,nodeHasher,nodeComparator> *states, node lastNode,int startX, int startY);
 double fVal(double g, int x, int y);
 
 class fCompare
@@ -80,8 +83,8 @@ PYBIND11_MODULE(searcher, m)
     m.doc() = "Searches graph for path to goal";
 
     m.def("graphSearch", ARAstar, "");
-}
-*/
+}*/
+
 
 main()
 {
@@ -91,25 +94,19 @@ main()
 	int _goalX = 199;
 	int _goalY = 199;
 
-	/*vector<double> predictionTimes;
-	vector<xt::xarray<double>> predictions;
-	predictionTimes.push_back(0);
-	predictionTimes.push_back(1000);
-	predictions.push_back(xt::zeros<double>({_sizeX,_sizeY}));
-	predictions.push_back(xt::zeros<double>({_sizeX,_sizeY}));*/
-	xt::xarray<double> predictionTimes;
-	xt::xarray<double> predictions;
+	xt::pyarray<double> predictionTimes;
+	xt::pyarray<double> predictions;
 	predictionTimes = {0,100,200};
 	predictions = xt::zeros<double>({3,_sizeX,_sizeY});	
 
 	cout << "starting search\n";
 	int startX = 0; int startY = 0; double speed = 10;
 	vector<int> PathX; vector<int> PathY; vector<double> PathT;
-	xt::xarray<double> solution = ARAstar(speed, startX, startY,_goalX,_goalY,predictions,predictionTimes);
+	xt::pyarray<double> solution = ARAstar(speed, startX, startY,_goalX,_goalY,predictions,predictionTimes);
 	cout << solution << endl;
 }
 
-xt::xarray<double> ARAstar(double speed, int startX, int startY, int _goalX, int _goalY, xt::xarray<double> &predictions, xt::xarray<double> &predictionTimes)
+xt::pyarray<double> ARAstar(double speed, int startX, int startY, int _goalX, int _goalY, xt::pyarray<double> &predictions, xt::pyarray<double> &predictionTimes)
 {
 	sizeX = predictions.shape()[1];//_sizeX;
 	sizeY = predictions.shape()[2];//_sizeY;
@@ -126,7 +123,7 @@ xt::xarray<double> ARAstar(double speed, int startX, int startY, int _goalX, int
 	states.insert(newState);
 	int numOfEpsilons = 1;
 	float epsilonList[numOfEpsilons] = {1};
-	xt::xarray<double> solution;
+	xt::pyarray<double> solution;
 
 	for (int i = 0; i < numOfEpsilons; i++)
 	{
@@ -143,7 +140,6 @@ xt::xarray<double> ARAstar(double speed, int startX, int startY, int _goalX, int
 			tempStates.insert(thisNode);
 		}
 		states = tempStates;
-		double tFound;
 		node lastNode = ComputePathWithReuse(speed, &states, startX, startY,predictions,predictionTimes);
 		//publish solution
 		solution = backTrace(&states, lastNode, startX, startY);
@@ -152,7 +148,7 @@ xt::xarray<double> ARAstar(double speed, int startX, int startY, int _goalX, int
 }
 
 node ComputePathWithReuse(double speed, unordered_set<node,nodeHasher,nodeComparator> *states, 
-	int startX, int startY, xt::xarray<double> &predictions, xt::xarray<double> &predictionTimes)
+	int startX, int startY, xt::pyarray<double> &predictions, xt::pyarray<double> &predictionTimes)
 {
 	// initialize priority queue used to choose states to expand
 	priority_queue<node,vector<node>,fCompare> OPEN;
@@ -261,7 +257,7 @@ node ComputePathWithReuse(double speed, unordered_set<node,nodeHasher,nodeCompar
 }
 
 
-xt::xarray<double> backTrace(unordered_set<node,nodeHasher,nodeComparator> *states, node lastNode,
+xt::pyarray<double> backTrace(unordered_set<node,nodeHasher,nodeComparator> *states, node lastNode,
 	int startX, int startY)
 {
 	vector<int> PathX; vector<int> PathY; vector<double> PathT;
