@@ -5,6 +5,8 @@ import sys
 import cost_map
 from matplotlib import pyplot as plt
 from matplotlib import cm
+import search
+
 
 class Pedestrian():
     def __init__(self):
@@ -171,6 +173,12 @@ def plot_annotated_video_plt(videofile, annotation_file):
         print("The annotation file does not exist.")
         return 0
 
+    goalX = 1000
+    goalY = 100
+    startX = 1100
+    startY = 800
+    curX, curY = startX, startY
+
     # load in the video
     videocap = cv2.VideoCapture(videofile)
     annotation_list = []
@@ -199,6 +207,10 @@ def plot_annotated_video_plt(videofile, annotation_file):
     X, Y = np.meshgrid(X, Y)
 
     count = 0
+    plt.figure()
+    plan = []
+    local_plan = np.zeros((2, 10))
+
     while success:
 
         # cost maps available only from 80
@@ -212,13 +224,33 @@ def plot_annotated_video_plt(videofile, annotation_file):
         # cv2.imshow("frame", image)
 
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)  # invert channels to use with pyplot
-        pdf = cm_object.get_cost_map(count)
+        if count %10 == 0:
+            plt.gcf().clear()
+            pdf = cm_object.get_cost_map(count)
+            # shift the odf time axis to be consistent with planner: move from back to front
+            input_costmap = np.rollaxis(pdf, 2)*1000000
+            print(input_costmap.max())
+            pred_times = np.arange(0, 10)
+            speed = 10
+
+        # input_preds = np.zeros((3, 200, 200))
+        # preds = np.array([0, 100, 200])
+        #
+            local_plan = search.graphSearch(speed, curX, curY, goalX, goalY, input_costmap, pred_times)
+            print(local_plan)
+            curX = int(local_plan[0, -1])
+            curY = int(local_plan[1, -1])
+            # plan has shape (3, 10)
+
 
         # plotting
-        plt.figure()
-        plt.contourf(X, Y, pdf, zdir='z', cmap=cm.viridis, alpha=0.4)
-        plt.imshow(image, alpha=0.6)
-        plt.show()
+            # pdf = cm_object.get_cost_map(count)
+            plt.contourf(X, Y, np.sum(pdf, axis=2), zdir='z', cmap=cm.viridis, alpha=0.4)
+            plt.imshow(image, alpha=0.6)
+            plt.plot(*(local_plan[:2, :]), linewidth=5)
+
+            plt.pause(0.5)
+
 
         success, image = videocap.read()
         count += 1
@@ -228,6 +260,7 @@ def plot_annotated_video_plt(videofile, annotation_file):
 
     videocap.release()
     cv2.destroyAllWindows()
+
 
 '''
 Each line in an annotations.txt file corresponds to an annotation & contains 10+ columns, separated by spaces. 
@@ -253,6 +286,9 @@ if __name__ == "__main__":
     print("Start")
     # plot_annotated_video(videofile1, annotationfile)
     plot_annotated_video_plt(videofile1, annotationfile)
+
+
+
 
     # pt1 = Pedestrian()
     #
