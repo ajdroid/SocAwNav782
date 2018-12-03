@@ -121,8 +121,8 @@ void test_main(xt::pyarray<double> & predictionTimes,
 xt::pyarray<double> & predictions)
 {
 	// set size of map and goal position
-	int _sizeX = 200;
-	int _sizeY = 200;
+	//int _sizeX = 200;
+	//int _sizeY = 200;
 	int _goalX = 199;
 	int _goalY = 199;
 
@@ -179,7 +179,6 @@ xt::pyarray<double> ARAstar(double speed, int startX, int startY, int _goalX, in
 			tempStates.insert(thisNode);
 		}
 		states = tempStates;
-		double tFound;
 		node lastNode = ComputePathWithReuse(speed, &states, startX, startY,predictions,predictionTimes);
 		//publish solution
 		double lastPredictTime = predictionTimes(predictionTimes.size()-1);
@@ -231,7 +230,7 @@ node ComputePathWithReuse(double speed, unordered_set<node,nodeHasher,nodeCompar
 					while ((predictionTimes(upper) < tempT))
 					{
 						lower = upper;
-						if (upper < predictionTimes.size())
+						if (upper < (int)predictionTimes.size()-1)
 						{
 							upper++;
 						}
@@ -325,7 +324,7 @@ xt::pyarray<double> backTrace(unordered_set<node,nodeHasher,nodeComparator> *sta
 	}
 	PathX.insert(PathX.begin(),it->x); PathY.insert(PathY.begin(),it->y); PathT.insert(PathT.begin(),it->t);
 	xt::pyarray<double> solution = xt::zeros<double>({3,(int)PathX.size()});
-	for (int i = 0; i < PathX.size();i++)
+	for (int i = 0; i < (int)PathX.size();i++)
 	{
 		solution(0,i) = PathX[i];
 		solution(1,i) = PathY[i];
