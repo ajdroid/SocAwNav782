@@ -108,7 +108,7 @@ void test_preds()
 	xt::pyarray<double> predictionTimes;
 	xt::pyarray<double> predictions;
 	predictionTimes = {0,100,200};
-	predictions = xt::zeros<double>({3,_sizeX,_sizeY});	
+	predictions = xt::zeros<double>({_sizeX,_sizeY,3});	
 
 	cout << "starting search\n";
 	int startX = 0; int startY = 0; double speed = 10;
@@ -126,13 +126,6 @@ xt::pyarray<double> & predictions)
 	int _goalX = 199;
 	int _goalY = 199;
 
-	/*vector<double> predictionTimes;
-	vector<xt::pyarray<double>> predictions;
-	predictionTimes.push_back(0);
-	predictionTimes.push_back(1000);
-	predictions.push_back(xt::zeros<double>({_sizeX,_sizeY}));
-	predictions.push_back(xt::zeros<double>({_sizeX,_sizeY}));*/
-
 	cout << "starting search\n";
 	int startX = 0; int startY = 0; double speed = 10;
 	vector<int> PathX; vector<int> PathY; vector<double> PathT;
@@ -147,8 +140,8 @@ xt::pyarray<double> testFunc(xt::pyarray<double> input)
 
 xt::pyarray<double> ARAstar(double speed, int startX, int startY, int _goalX, int _goalY, xt::pyarray<double> &predictions, xt::pyarray<double> &predictionTimes)
 {
-	sizeX = predictions.shape()[1];//_sizeX;
-	sizeY = predictions.shape()[2];//_sizeY;
+	sizeX = predictions.shape()[0];//_sizeX;
+	sizeY = predictions.shape()[1];//_sizeY;
 	goalX = _goalX;
 	goalY = _goalY;
 	// initialize g values and open list for the first weighted Astar
@@ -201,11 +194,12 @@ node ComputePathWithReuse(double speed, unordered_set<node,nodeHasher,nodeCompar
 			OPEN.push(thisNode);
 		}
 	}
-
+	node lastExpand;
 	// Loop until either goal is next to expand (f goal is the smallest in open list) or no more nodes in open list
 	while((OPEN.top().t < predictionTimes(predictionTimes.size()-1)) && !reachedGoal(OPEN.top()) && !OPEN.empty())
 	{
 		auto expand = states->find(OPEN.top());
+		lastExpand = *expand;
 		OPEN.pop();
 		//cout << "state to expand1 x = " << OPEN.top().x << ", y = " << OPEN.top().y << ", t = " << OPEN.top().t << endl;		// Don't expand nodes that were already expanded and put into the CLOSED list
 		//cout << "f = " << OPEN.top().f << endl;
@@ -237,8 +231,8 @@ node ComputePathWithReuse(double speed, unordered_set<node,nodeHasher,nodeCompar
 						else
 							break;
 					}
-					double lastPredict = predictions(lower,tempX,tempY);
-					double nextPredict = predictions(upper,tempX,tempY);
+					double lastPredict = predictions(tempX,tempY,lower);
+					double nextPredict = predictions(tempX,tempY,upper);
 					double tempP;
 					if (predictionTimes(upper) == predictionTimes(lower))
 					{
@@ -301,6 +295,11 @@ node ComputePathWithReuse(double speed, unordered_set<node,nodeHasher,nodeCompar
 			states->insert(expandModified);
 		}
 	}
+	if (OPEN.empty())
+	{
+		cout << "\n\n empty \n\n";
+		return lastExpand;
+	}
 	return OPEN.top();
 }
 
@@ -312,7 +311,7 @@ xt::pyarray<double> backTrace(unordered_set<node,nodeHasher,nodeComparator> *sta
 	node tempState = lastNode;
 	auto it = states->find(tempState);
 	int timeStep = ceil(it->t);
-	while ((tempState.x != startX) && (tempState.y != startY))
+	while ((tempState.x != startX) || (tempState.y != startY))
 	{
 		if (it->t <= timeStep)
 		{
