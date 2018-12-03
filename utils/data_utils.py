@@ -173,10 +173,10 @@ def plot_annotated_video_plt(videofile, annotation_file):
         print("The annotation file does not exist.")
         return 0
 
-    goalX = 1000
-    goalY = 100
-    startX = 1100
-    startY = 800
+    goalX = 1300
+    goalY = 400
+    startX = 1300
+    startY = 1000
     curX, curY = startX, startY
 
     # load in the video
@@ -228,14 +228,16 @@ def plot_annotated_video_plt(videofile, annotation_file):
             plt.gcf().clear()
             pdf = cm_object.get_cost_map(count)
             # shift the odf time axis to be consistent with planner: move from back to front
-            input_costmap = np.rollaxis(pdf, 2)*1000000
-            print(input_costmap.max())
+            input_costmap = pdf*1000000
+            #print(input_costmap.max())
             pred_times = np.arange(0, 10)
             speed = 10
 
         # input_preds = np.zeros((3, 200, 200))
         # preds = np.array([0, 100, 200])
         #
+            print("SIZE OF COST MAP")
+            print(input_costmap.shape)
             local_plan = search.graphSearch(speed, curX, curY, goalX, goalY, input_costmap, pred_times)
             print(local_plan)
             curX = int(local_plan[0, -1])
