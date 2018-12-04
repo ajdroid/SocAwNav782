@@ -173,10 +173,18 @@ def plot_annotated_video_plt(videofile, annotation_file):
         print("The annotation file does not exist.")
         return 0
 
-    goalX = 1300
-    goalY = 400
-    startX = 1300
+    obstacle_map = cv2.imread("../obstacleMask.jpg", 0)
+    obstacle_map = obstacle_map/obstacle_map.max()
+    cost_scale = 1000
+    # goalX = 1204
+    # goalY = 300
+    goalX = 300
+    goalY = 500
+    startX = 1000
     startY = 1000
+    if obstacle_map[startY, startX] or obstacle_map[goalY, goalX]:
+        print(" Start or goal is occluded!!")
+        exit(0)
     curX, curY = startX, startY
 
     # load in the video
@@ -208,7 +216,7 @@ def plot_annotated_video_plt(videofile, annotation_file):
 
     count = 0
     plt.figure()
-    plan = []
+    plan = np.zeros((2, 1))
     local_plan = np.zeros((2, 10))
 
     while success:
@@ -226,28 +234,40 @@ def plot_annotated_video_plt(videofile, annotation_file):
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)  # invert channels to use with pyplot
         if count %10 == 0:
             plt.gcf().clear()
-            pdf = cm_object.get_cost_map(count)
+            pdf_plot = cm_object.get_cost_map(count)*cost_scale
+            pdf = pdf_plot + obstacle_map[:, :, None]*1e5
+            input_costmap = np.swapaxes(pdf, 0, 1)
+
             # shift the odf time axis to be consistent with planner: move from back to front
-            input_costmap = pdf*1000000
-            #print(input_costmap.max())
+            # input_costmap = input_costmap*1000000
             pred_times = np.arange(0, 10)
             speed = 10
 
-        # input_preds = np.zeros((3, 200, 200))
-        # preds = np.array([0, 100, 200])
-        #
-            print("SIZE OF COST MAP")
-            print(input_costmap.shape)
             local_plan = search.graphSearch(speed, curX, curY, goalX, goalY, input_costmap, pred_times)
+
+            plan = np.append(plan, local_plan[:2, :], axis=1)
             print(local_plan)
+            if local_plan.shape[1] == 1:
+                if local_plan[0, 0] == goalX and local_plan[1, 0] == goalY:
+                    print("Reached Goal!")
+                    plt.contourf(X, Y, np.sum(pdf, axis=2), zdir='z', cmap=cm.viridis, alpha=0.4)
+                    plt.colorbar()
+                    plt.imshow(image, alpha=0.6)
+                    plt.plot(*(plan[:, 1:]), linewidth=2)
+                    # plot goal location
+                    plt.scatter(*(local_plan[:2, :]), s=10)
+                    plt.show()
+
+                    break
+
             curX = int(local_plan[0, -1])
             curY = int(local_plan[1, -1])
-            # plan has shape (3, 10)
 
 
         # plotting
             # pdf = cm_object.get_cost_map(count)
-            plt.contourf(X, Y, np.sum(pdf, axis=2), zdir='z', cmap=cm.viridis, alpha=0.4)
+            plt.contourf(X, Y, np.sum(pdf_plot, axis=2), zdir='z', cmap=cm.viridis, alpha=0.4)
+            plt.colorbar()
             plt.imshow(image, alpha=0.6)
             plt.plot(*(local_plan[:2, :]), linewidth=5)
 
