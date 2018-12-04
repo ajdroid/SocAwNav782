@@ -107,7 +107,7 @@ def plot_trajectories(true_trajs, pred_trajs, nodesPresent, obs_length, stats, n
     
     for stat in stats:
         mux, muy, sx, sy, corr = stat[0], stat[1], stat[2], stat[3], stat[4]
-        pdf += gaussian_2d(pos, mux*height, muy*width, sx*height, sy*width, corr)
+        pdf += gaussian_2d(pos, mux*height, muy*width, sx*height*1000, sy*width*1000, corr)
     
     traj_data = {}
     for tstep in range(traj_length):
@@ -213,7 +213,7 @@ class CostMap(object):
         result_stats_file = os.path.join(save_directory, stat_data)
         f = open(result_stats_file, 'rb')
         self.result_stats = pickle.load(f)
-        self.frame_num = np.asarray([i * 10 for i in range(len(self.result_stats))])
+        self.frame_num = np.asarray([(i+8) * 10 for i in range(len(self.result_stats))])
         self.height = height
         self.width = width
         self.patch_size = patch_size

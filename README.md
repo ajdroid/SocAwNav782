@@ -65,3 +65,12 @@ pip install numpy
 pip install matplotlib
 pip install 
 ```
+
+
+#### Building the C++ module for python export
+
+```
+c++ -O3 -Wall -shared -std=c++14 -fPIC `python3 -m pybind11 --includes` -I/usr/local/lib/python3.5/dist-packages/numpy/core/include search.cpp -o search`python3-config --extension-suffix`
+```
+
+
