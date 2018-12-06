@@ -32,20 +32,19 @@ class Pedestrian():
         with open(annotationfile) as f:
             for line in f:
                 line = line.strip().split(' ')
-                # print line
-                # print "break"
                 annotation_list.append(line)
 
         # The position is the midpoint of the bounding box
         for i in range(len(annotation_list)-1):  # Skips last frame
-            old_pos = (-1, -1)
+            # old_pos = (-1, -1)
             listval = annotation_list[i]
             listval_future = annotation_list[i+1]
             speed = 0
             counter = 0
             # get all annotations for this subject ID
+            # import ipdb; ipdb.set_trace();
             if int(listval[0]) == subject:
-                if not start_flag == False:
+                if start_flag == False:
                     self.start_frame = int(listval[5])
                     start_flag = True
                 # print("here")
@@ -58,6 +57,8 @@ class Pedestrian():
                 speed += cur_speed
                 counter += 1
                 self.velocity_list.append(cur_vel)
+            else:
+                continue
 
             if int(listval_future[0]) != subject and start_flag==True:
                 self.velocity_list[-1] = (0,0)
@@ -104,16 +105,20 @@ class Pedestrian():
 def place_annotation(image, annotation_dict, frame, color_dict):
     """
     marks bboxes around the pedestrian on a video sequence
+    plot the pedestrian past trajectories
     """
     print(frame)
     font = cv2.FONT_HERSHEY_COMPLEX_SMALL
     frame_info = annotation_dict[frame]
     # print("The frame info :")
     # print(frame_info)
+
     for subject_set in frame_info:
-        if subject_set[6]!=1 and subject_set[7]!=1 and subject_set[8]!=1:
+        # print(subject_set[9], subject_set[9] == '"Pedestrian"')
+        if subject_set[6] != 1 and subject_set[7] != 1 and subject_set[8] != 1 and subject_set[9] == '"Pedestrian"':
             cv2.rectangle(image, (int(subject_set[1]), int(subject_set[2])),
-                          (int(subject_set[3]), int(subject_set[4])), color_dict[subject_set[9]], 2)
+                          (int(subject_set[3]), int(subject_set[4])), color_dict[subject_set[9]]\
+                          , thickness=3)
             cv2.putText(image, subject_set[0],
                         (int(subject_set[1])-2, int(subject_set[2])-2), font, 1, color_dict[subject_set[9]])
 
@@ -163,8 +168,10 @@ def plot_annotated_video(videofile, annotation_file):
     videocap.release()
     cv2.destroyAllWindows()
 
+
 def plot_annotated_video_plt(videofile, annotation_file):
-    color_dict = {'"Biker"': (0, 0, 255), '"Pedestrian"': (0, 255, 0), '"Car"': (255, 255, 0), '"Bus"': (0, 0, 0), \
+    # this is BGR
+    color_dict = {'"Biker"': (0, 0, 0), '"Pedestrian"': (0, 0, 255), '"Car"': (255, 255, 0), '"Bus"': (0, 0, 0), \
                   '"Skateboarder"': (100, 100, 255), '"Cart"': (255, 255, 255)}
     if not os.path.isfile(videofile):
         print("The video file does not exist.")
@@ -175,13 +182,20 @@ def plot_annotated_video_plt(videofile, annotation_file):
 
     obstacle_map = cv2.imread("../obstacleMask.jpg", 0)
     obstacle_map = obstacle_map/obstacle_map.max()
-    cost_scale = 1000
+    cost_scale = 100000
     # goalX = 1204
     # goalY = 300
-    goalX = 300
-    goalY = 500
-    startX = 1000
-    startY = 1000
+    # goalX = 100
+    # goalY = 1000
+    # startX = 1356
+    # startY = 629
+    startX = 400
+    startY = 120
+    goalX = 1000
+    goalY = 1000
+
+    start_frame = 9060
+
     if obstacle_map[startY, startX] or obstacle_map[goalY, goalX]:
         print(" Start or goal is occluded!!")
         exit(0)
@@ -189,8 +203,12 @@ def plot_annotated_video_plt(videofile, annotation_file):
 
     # load in the video
     videocap = cv2.VideoCapture(videofile)
+    vid_length = int(videocap.get(cv2.CAP_PROP_FRAME_COUNT))
+
     annotation_list = []
     annotation_dict = {}
+    pedestrian_dictx = {}
+    pedestrian_dicty = {}
     print("Loading annotation file")
     with open(annotation_file) as f:
         for line in f:
@@ -202,6 +220,16 @@ def plot_annotated_video_plt(videofile, annotation_file):
         frame_id = entry[5]
         if frame_id not in annotation_dict:
             annotation_dict[frame_id] = []
+        track_id = entry[0]
+        if track_id not in pedestrian_dictx:
+            pedestrian_dictx[track_id] = np.empty((vid_length,))
+            pedestrian_dictx[track_id].fill(np.nan)
+            pedestrian_dicty[track_id] = np.empty((vid_length,))
+            pedestrian_dicty[track_id].fill(np.nan)
+
+        pedestrian_dictx[track_id][int(frame_id)] = (int(entry[1]) +int(entry[3])) / 2
+        pedestrian_dicty[track_id][int(frame_id)] = (int(entry[2]) + int(entry[4])) / 2
+
         annotation_dict[frame_id].append(entry)
     annotation_list.sort(key=lambda x: x[5])
 
@@ -219,10 +247,13 @@ def plot_annotated_video_plt(videofile, annotation_file):
     plan = np.zeros((2, 1))
     local_plan = np.zeros((2, 10))
 
+    videocap.set(cv2.CAP_PROP_POS_FRAMES, start_frame)
+    count = start_frame
+
     while success:
 
         # cost maps available only from 80
-        if count < 80:
+        if count < start_frame:
             success, image = videocap.read()
             count += 1
             continue
@@ -236,16 +267,20 @@ def plot_annotated_video_plt(videofile, annotation_file):
             plt.gcf().clear()
             pdf_plot = cm_object.get_cost_map(count)*cost_scale
             pdf = pdf_plot + obstacle_map[:, :, None]*1e5
+            pdf = np.sum(pdf, axis=2, keepdims=True)#[:,:,None]
+            print(pdf.shape)
+            pdf = np.tile(pdf, (1,1,12))
+            print(pdf.shape)
             input_costmap = np.swapaxes(pdf, 0, 1)
 
             # shift the odf time axis to be consistent with planner: move from back to front
             # input_costmap = input_costmap*1000000
             pred_times = np.arange(0, 10)
-            speed = 10
+            speed = 5
 
             local_plan = search.graphSearch(speed, curX, curY, goalX, goalY, input_costmap, pred_times)
-
             plan = np.append(plan, local_plan[:2, :], axis=1)
+
             print(local_plan)
             if local_plan.shape[1] == 1:
                 if local_plan[0, 0] == goalX and local_plan[1, 0] == goalY:
@@ -253,9 +288,17 @@ def plot_annotated_video_plt(videofile, annotation_file):
                     plt.contourf(X, Y, np.sum(pdf, axis=2), zdir='z', cmap=cm.viridis, alpha=0.4)
                     plt.colorbar()
                     plt.imshow(image, alpha=0.6)
-                    plt.plot(*(plan[:, 1:]), linewidth=2)
+                    plt.plot(*(plan[:, 1:]), linewidth=5, color='g')
                     # plot goal location
                     plt.scatter(*(local_plan[:2, :]), s=10)
+
+                    # plot the pedestrian trajectories
+                    for anno in annotation_dict[str(count)]:
+                        ped_id = anno[0]
+                        plt.plot(pedestrian_dictx[ped_id][start_frame+1:count],\
+                                 pedestrian_dicty[ped_id][start_frame+1:count],\
+                                 linewidth=2, color='r', alpha=0.1)
+
                     plt.show()
 
                     break
@@ -263,13 +306,13 @@ def plot_annotated_video_plt(videofile, annotation_file):
             curX = int(local_plan[0, -1])
             curY = int(local_plan[1, -1])
 
-
-        # plotting
+        # plotting paths to now
             # pdf = cm_object.get_cost_map(count)
             plt.contourf(X, Y, np.sum(pdf_plot, axis=2), zdir='z', cmap=cm.viridis, alpha=0.4)
             plt.colorbar()
             plt.imshow(image, alpha=0.6)
-            plt.plot(*(local_plan[:2, :]), linewidth=5)
+            plt.plot(*(plan[:, 1:]), linewidth=5, color='y')
+            plt.scatter(goalX, goalY, marker='*', c='w', s=200)
 
             plt.pause(0.5)
 
@@ -309,18 +352,15 @@ if __name__ == "__main__":
     # plot_annotated_video(videofile1, annotationfile)
     plot_annotated_video_plt(videofile1, annotationfile)
 
-
-
-
     # pt1 = Pedestrian()
-    #
+
     # pt1.extract_subject_trajectory(annotationfile, 1)
     #
     # print(pt1.start_frame)
     # print(pt1.stop_frame)
     # print(pt1.preferred_speed)
-    #print(pt1.position_list)
-    #print(pt1.velocity_list)
+    # print(pt1.position_list)
+    # print(pt1.velocity_list)
     # pt1.plotSubjectInvideo(videofile1)
 
 
