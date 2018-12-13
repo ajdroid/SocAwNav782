@@ -6,6 +6,7 @@ import cost_map
 from matplotlib import pyplot as plt
 from matplotlib import cm
 import search
+import time
 
 
 class Pedestrian():
@@ -249,6 +250,7 @@ def plot_annotated_video_plt(videofile, annotation_file):
 
     videocap.set(cv2.CAP_PROP_POS_FRAMES, start_frame)
     count = start_frame
+    timers= []
 
     while success:
 
@@ -278,13 +280,19 @@ def plot_annotated_video_plt(videofile, annotation_file):
             pred_times = np.arange(0, 10)
             speed = 5
 
+            start = time.time()
             local_plan = search.graphSearch(speed, curX, curY, goalX, goalY, input_costmap, pred_times)
+            end = time.time()
+            print(end-start)
+            timers.append(end-start)
             plan = np.append(plan, local_plan[:2, :], axis=1)
+
 
             print(local_plan)
             if local_plan.shape[1] == 1:
                 if local_plan[0, 0] == goalX and local_plan[1, 0] == goalY:
                     print("Reached Goal!")
+                    print("Average planning times: {}".format(np.mean(timers)))
                     plt.contourf(X, Y, np.sum(pdf, axis=2), zdir='z', cmap=cm.viridis, alpha=0.4)
                     plt.colorbar()
                     plt.imshow(image, alpha=0.6)
